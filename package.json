@@ -1,0 +1,19 @@
+{
+  "name": "react-native-health-layer",
+  "version": "1.0.1",
+  "description": "React native package for grabbing fitness data from IOS and Android",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ken7y/react-native-fitness-layer.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ken7y/react-native-fitness-layer/issues"
+  },
+  "homepage": "https://github.com/ken7y/react-native-fitness-layer#readme"
+}
