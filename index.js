@@ -16,7 +16,8 @@ const optionsGooglePermissions = {
     Scopes.FITNESS_BLOOD_GLUCOSE_READ,
     Scopes.FITNESS_OXYGEN_SATURATION_READ,
     Scopes.FITNESS_BODY_TEMPERATURE_READ,
-    Scopes.FITNESS_REPRODUCTIVE_HEALTH_READ
+    Scopes.FITNESS_REPRODUCTIVE_HEALTH_READ,
+    Scopes.FITNESS_HEART_RATE_READ,
   ],
 }
 
@@ -28,7 +29,8 @@ const optionsApplePermissions = {
       'StepCount',
       'HeartRate',
       'BloodPressureDiastolic',
-      'BloodPressureSystolic'
+      'BloodPressureSystolic',
+      'SleepAnalysis'
     ],
   },
 };
@@ -46,7 +48,7 @@ export const connect = () => {
     case 'android':
       GoogleFit.checkIsAuthorized().then(() => {
         if (!GoogleFit.isAuthorized) {
-          GoogleFit.authorize(optionsGooglePermissions)
+          GoogleFit.authorize(optionsGooglePermissions.scopes)
             .then(authResult => {
               if (!authResult.success) {
                 console.log("AUTH_DENIED", authResult.message);
@@ -63,47 +65,35 @@ export const connect = () => {
   }
 };
 
-export const getHeartRate = async (options) => 
+export const getHeartRate = async (inputOption) => 
 new Promise((resolve, reject) => {
   switch (Platform.OS) {
     case 'ios':
-      console.log("heartrate");
-      AppleHealthKit.getHeartRateSamples(options, (err, results) => {
+      AppleHealthKit.getHeartRateSamples(inputOption, (err, results) => {
         if (err) {
           console.log(err);
           return;
         }
-        resolve(results);
+        retHeartRate = {};
+        retHeartRate["ios.heartrate"] = [];
+        results.map(x=> {
+          var date = x.endDate.split("T");
+          retHeartRate["ios.heartrate"].push({"date": date[0], "value": x.value, "source": x.sourceId});
+        });
+        resolve(retHeartRate);
       });
       break;
     case 'android':
       GoogleFit.onAuthorize(() => {
-        console.log('Sucess 5555 authentification')
-
-        const options = {
-          startDate: "2017-01-01T00:00:17.971Z", // required
-          endDate: new Date().toISOString(), // required
-          bucketUnit: "DAY", // optional - default "DAY". Valid values: "NANOSECOND" | "MICROSECOND" | "MILLISECOND" | "SECOND" | "MINUTE" | "HOUR" | "DAY"
-          bucketInterval: 1, // optional - default 1. 
-        }
-        const callback = ((error, response) => {
-          if (error){
-            console.log(error)
+          const options = {
+            startDate: "2020-11-11T00:00:17.971Z", // required
+            endDate: new Date().toISOString(), // required
           }
-          ret = [];
-            response.map(x => {ret.push(
-              { "bloodPressureSystolicValue":x.value,
-                "bloodPressureDiastolicValue" :x.value2,
-                "startDate": x.startDate,
-                "endDate": x.endDate
-              }
-              )});
-          console.log(ret);
-        });
-        GoogleFit.getBloodPressureSamples(options, callback);
+          const callback5 = ((error, response) => {
+            console.log(error, response)
+          });
+          GoogleFit.getHeartRateSamples(options, callback5)
       });
-
-      // GoogleFit.getHeartRateSamples(optionsHeartRate, callback)
       console.log("Android heartrate");
       break;
     default:
@@ -111,46 +101,50 @@ new Promise((resolve, reject) => {
   }
 });
 
-export const getBloodPressure = async (sDate, eDate, setFunc) => 
+export const getBloodPressure = async (inputOption) => 
 new Promise((resolve, reject) =>  {
   switch (Platform.OS) {
     case 'ios':
-      let options = {
-        unit: 'mmhg',	// default 'mmhg'
-        startDate: sDate,
-        endDate: eDate,
-        ascending: false,	// optional; default false
-      };
-      AppleHealthKit.getBloodPressureSamples(options, (err, results) => {
+      AppleHealthKit.getBloodPressureSamples(inputOption, (err, results) => {
         if (err) {
           return;
         }
-        console.log(results)
-        resolve (results);
+        console.log("bloodpressure")
+        retBloodPressure = {}; 
+        retBloodPressure["ios.bloodpressure"] = [];
+        results.map(x => {retBloodPressure["ios.bloodpressure"].push(
+          { "bloodPressureSystolicValue":x.bloodPressureSystolicValue,
+            "bloodPressureDiastolicValue" :x.bloodPressureDiastolicValue,
+            "startDate": x.startDate,
+            "endDate": x.endDate
+          }
+          );});
+        console.log(retBloodPressure)
+        resolve(retBloodPressure);
       });
       break;
     case 'android':
       GoogleFit.onAuthorize(() => {
         const options = {
-          startDate:sDate,
-          endDate:eDate,
-          bucketUnit: "DAY", 
-          bucketInterval: 1,
+          startDate: "2017-01-01T00:00:17.971Z", 
+          endDate: new Date().toISOString(), 
         }
-        
         const callback = ((error, response) => {
           if (error){
             console.log(error)
           }
-          ret = [];
-            response.map(x => {ret.push(
+          retBlood = {}; 
+          retBlood["googlefit.bloodpressure"] = [];
+
+          retBloodPressure = [];
+            response.map(x => {retBlood["googlefit.bloodpressure"].push(
               { "bloodPressureSystolicValue":x.value,
                 "bloodPressureDiastolicValue" :x.value2,
                 "startDate": x.startDate,
                 "endDate": x.endDate
               }
               )});
-          return (ret);
+          resolve(retBlood);
         });
         
         GoogleFit.getBloodPressureSamples(options, callback);
@@ -161,7 +155,7 @@ new Promise((resolve, reject) =>  {
   }
 });
 
-export const getStepCount = (dateOptions, setFunc) => 
+export const getStepCount = (inputOption) => 
 new Promise((resolve, reject) => {
   switch (Platform.OS) {
     case 'ios':
@@ -182,48 +176,35 @@ new Promise((resolve, reject) => {
           console.log(err);
           return;
         }
-        ret = {}; 
-        ret["ios.dailysteps"] = [];
+        retSteps = {}; 
+        retSteps["ios.dailysteps"] = [];
         results.map(x=> {
           var date = x.endDate.split("T");
-          ret["ios.dailysteps"].push({"date": date[0], "value": x.value});
+          retSteps["ios.dailysteps"].push({"date": date[0], "value": x.value});
         });
-        // var date = results.endDate.split("T");
-        // ret["ios.dailysteps"].push({"date": date[0], "value": results.value});
-        // console.log(ret);
-        console.log("steps done\n");
-        resolve(ret);
+        resolve(retSteps);
       });
       break;
     case 'android':
-
-      console.log("Android daily steps");
-
       GoogleFit.onAuthorize(() => {
-        console.log('Sucess 5555 authentification')
-
         const options = {
-          startDate: "2020-09-01T00:00:17.971Z", // required ISO8601Timestamp
-          endDate: new Date().toISOString(), // required ISO8601Timestamp
-          bucketUnit: "SECOND", // optional - default "DAY". Valid values: "NANOSECOND" | "MICROSECOND" | "MILLISECOND" | "SECOND" | "MINUTE" | "HOUR" | "DAY"
-          bucketInterval: 1, // optional - default 1. 
-      };
+          startDate: "2020-09-01T00:00:17.971Z", 
+          endDate: new Date().toISOString(), 
+        };
       GoogleFit.getDailyStepCountSamples(options)
           .then((res) => {
               console.log("AndroidCodeNow")
               ret = {};
               res.map(x => {
-                console.log(x["source"]); 
                 x["steps"].map(y=> {
-                  console.log(y);
                 if (!ret[x["source"]]) {
                   ret[x["source"]] = []
                 }
                   ret[x["source"]].push(y);
                 });
               });
-              console.log(ret);
-              alert(JSON.stringify(res))
+              // alert(JSON.stringify(ret))
+              resolve(ret)
           })
           .catch((err) => {
               console.log(err)
@@ -238,7 +219,15 @@ new Promise((resolve, reject) => {
   }
 });
 
-export const getHeight = (inputOption, setFunc) => 
+function toFeet(n) {
+  n = n *100;
+  var realFeet = ((n*0.393700) / 12);
+  var feet = Math.floor(realFeet);
+  var inches = Math.round((realFeet - feet) * 12);
+  return feet + "." + inches;
+}
+
+export const getHeight = (inputOption) => 
 new Promise((resolve, reject) => {
   switch (Platform.OS) {
     case 'ios':
@@ -248,24 +237,46 @@ new Promise((resolve, reject) => {
           console.log(err);
           return;
         }
-        ret = {}; 
-        ret["ios.height"] = [];
+        retHeight = {}; 
+        retHeight["ios.height"] = [];
         results.map(x=> {
-          ret["ios.height"].push({"value": x.value});
+          retHeight["ios.height"].push({"value": x.value});
         });
-        console.log(ret)
-        resolve(ret);
+        resolve(retHeight);
       });
       break;
     case 'android':
       console.log("Android height");
+      GoogleFit.onAuthorize(() => {
+        const options = {
+          startDate: "2020-09-01T00:00:17.971Z", 
+          endDate: new Date().toISOString(), 
+        };
+ 
+        GoogleFit.getHeightSamples(options, (err, res) => {
+                  console.log("AndroidCodeNow")
+                  ret = {};
+                  res.map(x => {
+                    if (!ret[x["addedBy"]]) {
+                      ret[x["addedBy"]] = []
+                    }
+                      if(options.unit == "inch"){
+                        ret[x["addedBy"]].push({"value": toFeet(x["value"])});
+                      } else{
+                        ret[x["addedBy"]].push({"value": x["value"]});
+                        
+                      }
+                  });
+                  resolve(ret)
+              });
+      });
       break;
     default:
       throw new Error('Invalid platform: ' + Platform.OS);
   }
 });
 
-export const getWeight = (inputOption, setFunc) => 
+export const getWeight = (inputOption) => 
 new Promise((resolve, reject) => {
   switch (Platform.OS) {
     case 'ios':
@@ -274,18 +285,77 @@ new Promise((resolve, reject) => {
           console.log(err);
           return;
         }
-        ret = {}; 
-        ret["ios.weight"] = [];
+        retWeight = {}; 
+        retWeight["ios.weight"] = [];
         results.map(x=> {
-          ret["ios.weight"].push({"value": x.value});
+          retWeight["ios.weight"].push({"value": x.value});
         });
-        console.log("Weighht")
-        console.log(ret)
-        resolve(ret);
+        resolve(retWeight);
       });
       break;
     case 'android':
       console.log("Android weight");
+      GoogleFit.onAuthorize(() => {
+        const options = {
+          startDate: "2020-09-01T00:00:17.971Z", 
+          endDate: new Date().toISOString(), 
+        };
+ 
+        GoogleFit.getWeightSamples(options, (err, res) => {
+                  console.log("AndroidCodeNow")
+                  ret = {};
+                  res.map(x => {
+                    if (!ret[x["addedBy"]]) {
+                      ret[x["addedBy"]] = []
+                    }
+                      if(options.unit == "inch"){
+                        ret[x["addedBy"]].push({"value": toFeet(x["value"])});
+                      } else{
+                        ret[x["addedBy"]].push({"value": x["value"]});
+                        
+                      }
+                  });
+                  resolve(ret)
+              });
+      });
+      break;
+    default:
+      throw new Error('Invalid platform: ' + Platform.OS);
+  }
+});
+
+export const getSleepData = (inputOption) => 
+new Promise((resolve, reject) => {
+  switch (Platform.OS) {
+    case 'ios':
+      AppleHealthKit.getSleepSamples(inputOption, (err, results) => {
+        if (err) {
+          console.log(err);
+          return;
+        }
+        console.log("Sleep")
+        console.log(results);
+        let retSleep = {}
+        retSleep["ios.sleep"] = results;
+        resolve(retSleep);
+      });
+      break;
+    case 'android':
+      GoogleFit.onAuthorize(() => {
+        const options5 = {
+          startDate: '2020-01-01T12:33:18.873Z', // required, timestamp or ISO8601 string
+          endDate: new Date().toISOString(), 
+        };
+        console.log("Android Sleep auth'd");
+
+        GoogleFit.getSleepData(options5, (err, res) => {
+              if (err){
+                resolve(err)
+              }
+                  console.log(res);
+                  resolve(res)
+              });
+      });
       break;
     default:
       throw new Error('Invalid platform: ' + Platform.OS);
