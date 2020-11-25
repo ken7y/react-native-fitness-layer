@@ -1,6 +1,6 @@
 {
   "name": "react-native-health-layer",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "React native package for grabbing fitness data from IOS and Android",
   "main": "index.js",
   "scripts": {
